@@ -92,18 +92,60 @@ def create_folder_if_not_exist(newpath: str):
     if not os.path.exists(newpath):
         os.makedirs(newpath)
 
+
 def click_button(button):
     driver.execute_script("arguments[0].click();", button)
 
+
+def get_valid_input(nb: int):
+    userChoice = 0
+    while userChoice < 1 or userChoice > nb:
+        try:
+            userChoice = int(input(f"Please choose a number between 1 and {nb} > "))
+        except ValueError:
+            print("We expect you to enter a valid integer")
+    return userChoice
+
+
 def handle_2fa():
-    message = driver.find_element(By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[1]").text
+    message = driver.find_element(
+        By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[1]"
+    ).text
     code_field = driver.find_element(By.ID, ":r1:")
-    submit_button = driver.find_element(By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[7]/div/button")
+    submit_button = driver.find_element(
+        By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[7]/div/button"
+    )
+    another_method_button = driver.find_element(
+        By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[5]/a"
+    )
+    resend_button = None
+
+    try:
+        resend_button = driver.find_element(
+            By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[4]/button"
+        )
+    except:
+        pass
+
+    choices = 2
     print(message)
-    code=input("ENTER THE RECEIVED CODE AND PRESS ENTER: ").strip()
-    code_field.send_keys(code)
-    click_button(submit_button)
-    
+    print("1) Enter the code")
+    print("2) Validate my identity using another method")
+    if resend_button is not None:
+        print("3) Resend")
+        choices = 3
+    print()
+    user_choice = get_valid_input(choices)
+    if user_choice == 1:
+        code = input("ENTER THE RECEIVED CODE AND PRESS ENTER: ").strip()
+        code_field.send_keys(code)
+        click_button(submit_button)
+        if code_field.get_attribute("aria-invalid"):
+            print("The code you entered is INCORRECT.")
+            handle_2fa()
+    elif user_choice == 2:
+        click_button(another_method_button)
+        # DO SOME THINGS DIDNT FINISH!!
 
 # HEADERS USED TO DOWNLOAD FILES FROM OMNIVOX
 HEADERS = {
@@ -132,9 +174,7 @@ driver = None
 
 print(" CTR + C TO EXIT THE SCRIPT ".center(70, "="))
 print(
-    " IF YOU THE STUDENT NUMBER OR THE STUDENT PASSWORD ARE INCORRECT ".center(
-        70, "="
-    )
+    " IF YOU THE STUDENT NUMBER OR THE STUDENT PASSWORD ARE INCORRECT ".center(70, "=")
 )
 print(
     " THE SCRIPT WILL CRASH AND YOU WILL HAVE TO START THE PROGRAM AGAIN ".center(
@@ -214,7 +254,7 @@ driver.get(LOGIN_URL)
 # Find the student number field
 studNum = driver.find_element(By.NAME, "NoDA")
 # Find the student password field
-studPass =  driver.find_element(By.NAME, "PasswordEtu")
+studPass = driver.find_element(By.NAME, "PasswordEtu")
 # Find the login button
 loginBut = driver.find_element(
     By.XPATH, "/html/body/div[2]/div[2]/div/div/div[2]/form/div[4]/div/button"
@@ -225,10 +265,10 @@ studNum.send_keys(STUDENT_NO)
 # Fill in the student password
 studPass.send_keys(STUDENT_PASSWD)
 # Clicking on the login button
-driver.execute_script("arguments[0].click();", loginBut)
+click_button(loginBut)
 time.sleep(20)
-
-handle_2fa()
+if "/mfa/" in driver.current_url:
+    handle_2fa()
 time.sleep(20)
 # Trying to find on the lea button
 # If the button is not found, this means that the login page failed and
@@ -285,9 +325,7 @@ for coursePanel in coursesPanel:
     # For each table in the documents page go through each row to find the links
     for table in tables:
         # Finding the name of the table
-        tableName = table.find_element(
-            By.CSS_SELECTOR, ".DisDoc_TitreCategorie"
-        ).text
+        tableName = table.find_element(By.CSS_SELECTOR, ".DisDoc_TitreCategorie").text
         if PRINT_TREE:
             print("  * " + repr(tableName))
         sub_section_folder = "." + make_valid_path(
