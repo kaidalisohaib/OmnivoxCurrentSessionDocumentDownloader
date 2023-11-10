@@ -3,9 +3,10 @@ import sys
 import time
 import shutil
 import logging
-from typing import Dict
 import requests
+from typing import Dict
 from pathlib import Path
+import pyinputplus as pyip
 from urllib.parse import quote
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -13,7 +14,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import NoSuchElementException
-
 
 # Download a file with a delay of 3 seconds to no go over
 # the omnivox rate limit, because if we download the files too
@@ -92,9 +92,16 @@ def create_folder_if_not_exist(newpath: str):
     if not os.path.exists(newpath):
         os.makedirs(newpath)
 
+def stalenessOf(element):
+  try:
+    element.is_enabled()
+    return False
+  except:
+    return True 
 
 def click_button(button):
     driver.execute_script("arguments[0].click();", button)
+    time.sleep(0.5)
 
 
 def get_valid_input(nb: int):
@@ -113,16 +120,16 @@ def handle_2fa():
     ).text
     code_field = driver.find_element(By.ID, ":r1:")
     submit_button = driver.find_element(
-        By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[7]/div/button"
+        By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()]/div/button"
     )
     another_method_button = driver.find_element(
-        By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[5]/a"
+        By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()-2]/a"
     )
     resend_button = None
 
     try:
         resend_button = driver.find_element(
-            By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[4]/button"
+            By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()-3]/button"
         )
     except:
         pass
@@ -135,17 +142,31 @@ def handle_2fa():
         print("3) Resend")
         choices = 3
     print()
-    user_choice = get_valid_input(choices)
+    user_choice = pyip.inputInt(min=1, max=choices) #get_valid_input(choices)
     if user_choice == 1:
-        code = input("ENTER THE RECEIVED CODE AND PRESS ENTER: ").strip()
+        code = pyip.inputInt("ENTER THE RECEIVED CODE> ", min=0)
         code_field.send_keys(code)
         click_button(submit_button)
-        if code_field.get_attribute("aria-invalid"):
+        if not stalenessOf(code_field):# code_field.get_attribute("aria-invalid"):
             print("The code you entered is INCORRECT.")
             handle_2fa()
     elif user_choice == 2:
         click_button(another_method_button)
-        # DO SOME THINGS DIDNT FINISH!!
+        list_options = driver.find_elements(By.CSS_SELECTOR, "a>div>div>div>p")
+        for idx,option in enumerate(list_options):
+            print(f"{idx+1}) {option.text}")
+        while True:
+            choice = pyip.inputInt("Choose a method> ", min=1, max=len(list_options)+1)
+            click_button(list_options[choice-1])
+            if stalenessOf(list_options[0]):
+                break
+            print("It's not working, try something else...")
+            click_button(driver.find_element(By.XPATH, "/html/body/div[3]/div[3]/div/div[2]/button"))
+        handle_2fa()
+    else:
+        click_button(resend_button)
+        click_button(code_field)
+        handle_2fa()
 
 # HEADERS USED TO DOWNLOAD FILES FROM OMNIVOX
 HEADERS = {
@@ -186,34 +207,18 @@ print()
 # Getting the cegep, because the login url changes
 print("1) Vanier")
 print("2) Rosemont")
-college_choice = int(input("Which college are you in, 1 or 2: "))
+college_choice = pyip.inputInt(min=1,max=2, prompt="Choose your college> ")
 match college_choice:
     case 1:
         LOGIN_URL = "https://vaniercollege.omnivox.ca/Login/Account/Login"
     case 2:
         LOGIN_URL = "https://crosemont.omnivox.ca/Login/Account/Login"
-    case other:
-        print()
-        print("You didn't type a valid choice")
-        print("START THE SCRIPT AGAIN")
-        raise ValueError()
-print()
 
 # Getting the student number
-STUDENT_NO = input("ENTER YOUR STUDENT NUMBER (PRESS ENTER AFTER): ").strip()
-if len(STUDENT_NO) == 0:
-    print()
-    print("THE STUDENT NUMBER IS EMPTY!")
-    print("START THE PROGRAM AGAIN")
-    raise ValueError()
+STUDENT_NO = pyip.inputInt(min=0, prompt="STUDENT ID> ")
 
 # Getting the student password
-STUDENT_PASSWD = input("ENTER YOUR OMNIVOX PASSWORD (PRESS ENTER AFTER): ").strip()
-if len(STUDENT_PASSWD) == 0:
-    print()
-    print("THE STUDENT PASSWORD IS EMPTY!")
-    print("START THE PROGRAM AGAIN")
-    raise ValueError()
+STUDENT_PASSWD = pyip.inputPassword(prompt="STUDENT PASSWORD> ")
 
 base_folder_documents = ".\documents"
 if os.path.exists(base_folder_documents):
@@ -243,6 +248,8 @@ driver = webdriver.Chrome(
     options=options,
     service_log_path=os.devnull,
 )
+driver.implicitly_wait(2)
+
 print()
 
 # Storing the url for each folder created to download the files later
@@ -266,10 +273,10 @@ studNum.send_keys(STUDENT_NO)
 studPass.send_keys(STUDENT_PASSWD)
 # Clicking on the login button
 click_button(loginBut)
-time.sleep(20)
-if "/mfa/" in driver.current_url:
+
+if "/mfa/" in driver.current_url: #works for vanier not sure for other colleges
     handle_2fa()
-time.sleep(20)
+
 # Trying to find on the lea button
 # If the button is not found, this means that the login page failed and
 # the student number of password isn't correct
