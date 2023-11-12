@@ -17,6 +17,14 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import NoSuchElementException
 
 
+def open_file(filename):
+    if sys.platform == "win32":
+        os.startfile(filename)
+    else:
+        opener = "open" if sys.platform == "darwin" else "xdg-open"
+        subprocess.call([opener, filename])
+
+
 # define our clear function
 def clear():
     # for windows
@@ -26,9 +34,13 @@ def clear():
     # for mac and linux(here, os.name is 'posix')
     else:
         _ = system("clear")
-    print("IF SOMETHING GOES WRONG OR NEED HELP, CONTACT 'kaidalisohaib@gmail.com'")
+    print(
+        "IF SOMETHING GOES WRONG OR NEED HELP, CONTACT 'kaidalisohaib@gmail.com'".center(
+            83, "="
+        )
+    )
     print(" [CTRL + C] TO QUIT THE SCRIPT ".center(83, "="))
-    print("=" * 83)
+    print("ʕ•ᴥ•ʔ".center(83, "="))
     print()
 
 
@@ -84,10 +96,10 @@ def download_everything(_allfolders_links: dict, session):
             )
     print("\n")
     documents_path = Path(".\documents")
-    print(
-        "FINISHED DOWNLOADING THE FILES! Absolute Folder Path:",
-        documents_path.absolute(),
-    )
+    print("FINISHED DOWNLOADING THE FILES!")
+    print()
+    print("Absolute Folder Path: " + documents_path.absolute())
+    open_file(documents_path.absolute())
 
 
 def make_valid_path(path):
@@ -165,15 +177,18 @@ def create_driver():
 def handle_login():
     clear()
     # Getting the cegep, because the login url changes
+    print("In which college are you? ◉_◉")
+    print()
     print("1) Vanier")
     print("2) Rosemont")
-    college_choice = pyip.inputInt(min=1, max=2, prompt="Choose your college> ")
+    print()
+    college_choice = pyip.inputInt(min=1, max=2, prompt="(1 or 2)> ")
     match college_choice:
         case 1:
             LOGIN_URL = "https://vaniercollege.omnivox.ca/Login/Account/Login"
         case 2:
             LOGIN_URL = "https://crosemont.omnivox.ca/Login/Account/Login"
-
+    print("\nLoading login page ...")
     # Go to the login page
     driver.get(LOGIN_URL)
 
@@ -198,7 +213,7 @@ def handle_login():
         studNum.send_keys(STUDENT_NO)
         # Fill in the student password
         studPass.send_keys(STUDENT_PASSWD)
-        print("Logging in ...\n")
+        print("\nLogging in ...\n")
         # Clicking on the login button
         click_button(loginBut)
         if driver.current_url.startswith(LOGIN_URL):
@@ -209,6 +224,8 @@ def handle_login():
 
 def handle_2fa():
     clear()
+    print("Two-factor authentication part ¯\_(ツ)_/¯")
+    print()
     message = driver.find_element(
         By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[1]"
     ).text
@@ -237,13 +254,16 @@ def handle_2fa():
         print("3) Resend")
         choices = 3
     print()
-    user_choice = pyip.inputInt(min=1, max=choices)  # get_valid_input(choices)
+    user_choice = pyip.inputInt(
+        "What do you want to do? ", min=1, max=choices
+    )  # get_valid_input(choices)
     if user_choice == 1:
         code = pyip.inputInt("ENTER THE RECEIVED CODE> ", min=0)
         code_field.send_keys(code)
         click_button(submit_button)
         if not stalenessOf(code_field):  # code_field.get_attribute("aria-invalid"):
             print("The code you entered is INCORRECT.")
+            time.sleep(2)
             handle_2fa()
     elif user_choice == 2:
         click_button(another_method_button)
@@ -297,23 +317,10 @@ PRINT_TREE = False
 # Selenium driver
 driver = create_driver()
 
+# Remove the backtrace in case python crashes
+sys.tracebacklimit = 0
+
 try:
-    # Remove the backtrace in case python crashes
-    sys.tracebacklimit = 0
-
-    print(" CTR + C TO EXIT THE SCRIPT ".center(70, "="))
-    print(
-        " IF YOU THE STUDENT NUMBER OR THE STUDENT PASSWORD ARE INCORRECT ".center(
-            70, "="
-        )
-    )
-    print(
-        " THE SCRIPT WILL CRASH AND YOU WILL HAVE TO START THE PROGRAM AGAIN ".center(
-            70, "="
-        )
-    )
-    print()
-
     # Preparing folder to put documents inside
     base_folder_documents = ".\documents"
     if os.path.exists(base_folder_documents):
@@ -329,8 +336,10 @@ try:
         handle_2fa()
 
     clear()
+    print("Successfully logged in! (ಠ_ಠ im in)")
+    print()
     print("Retrieving URLs to download files ...")
-
+    print()
     # Trying to find on the lea button
     # If the button is not found, this means that the login page failed and
     # the student number of password isn't correct
@@ -355,6 +364,7 @@ try:
 
     # For each course the driver will go through each table and get all the urls
     for coursePanel in coursesPanel:
+        files_found = 0
         # Get the name of the course
         courseName = coursePanel.find_element(By.CLASS_NAME, "card-panel-title").text
         if PRINT_TREE:
@@ -413,6 +423,14 @@ try:
                     all_folders_links[sub_section_folder].append(
                         download_element.get_attribute("href")
                     )
+                    files_found += 1
+                    print(
+                        f"{courseName}: ",
+                        f"{files_found}".center(3),
+                        " documents found",
+                        end="\r",
+                        flush=True,
+                    )
                 # If the link element is a sub-table then click on it and add each link to the list
                 # of this folder if the element is downloable
                 elif not download_element.get_attribute("title"):
@@ -448,14 +466,25 @@ try:
                             all_folders_links[sub_sub_section_folder].append(
                                 iframe_url + "&" + onclik.split("&")[-1].split("'")[0]
                             )
+                        files_found += 1
+                        print(
+                            f"{courseName}: ",
+                            f"{files_found}".center(3),
+                            " documents found",
+                            end="\r",
+                            flush=True,
+                        )
                     driver.switch_to.default_content()
+
         driver.close()
         driver.switch_to.window(original_window)
+        print()
     # Create a requests session with all the good cookies to be able to download the files
     session_requests = requests.Session()
     for cookie in driver.get_cookies():
         session_requests.cookies.set(cookie["name"], cookie["value"])
     print("\nDownloading the files and placing them in their respective folders ...")
+    print()
     # Pass the dict with all the links related to a folder, download them and place them
     # in the correct folder
     download_everything(all_folders_links, session_requests)
