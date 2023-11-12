@@ -258,7 +258,7 @@ def handle_2fa():
         "What do you want to do? ", min=1, max=choices
     )  # get_valid_input(choices)
     if user_choice == 1:
-        code = pyip.inputInt("ENTER THE RECEIVED CODE> ", min=0)
+        code = pyip.inputStr("ENTER THE RECEIVED CODE> ", strip=True)
         code_field.send_keys(code)
         click_button(submit_button)
         if not stalenessOf(code_field):  # code_field.get_attribute("aria-invalid"):
