@@ -8,13 +8,15 @@ from typing import Dict
 from pathlib import Path
 import pyinputplus as pyip
 from os import system, name
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import NoSuchElementException
+
+SHOW_BROWSER = False
 
 
 def open_file(filename):
@@ -98,7 +100,8 @@ def download_everything(_allfolders_links: dict, session):
     documents_path = Path(".\documents")
     print("FINISHED DOWNLOADING THE FILES!")
     print()
-    print("Absolute Folder Path: " + documents_path.absolute())
+    print("Absolute Folder Path: ")
+    print(str(documents_path.absolute()))
     open_file(documents_path.absolute())
 
 
@@ -122,6 +125,12 @@ def create_folder_if_not_exist(newpath: str):
         os.makedirs(newpath)
 
 
+def save_external_link(url: str, path):
+    content = f'<html><body><script type="text/javascript">window.location.href = "{url}";</script></body></html>'
+    with open(path, "w") as html_file:
+        html_file.write(content)
+
+
 def stalenessOf(element):
     try:
         element.is_enabled()
@@ -135,20 +144,11 @@ def click_button(button):
     time.sleep(0.5)
 
 
-def get_valid_input(nb: int):
-    userChoice = 0
-    while userChoice < 1 or userChoice > nb:
-        try:
-            userChoice = int(input(f"Please choose a number between 1 and {nb} > "))
-        except ValueError:
-            print("We expect you to enter a valid integer")
-    return userChoice
-
-
 def create_driver():
     # Options for chrome webdriver
     options = Options()
-    options.add_argument("--headless")
+    if not SHOW_BROWSER:
+        options.add_argument("--headless")
     options.add_argument("--log-level=3")
     options.add_argument("--disable-logging")
     options.add_argument("--disable-dev-tools")
@@ -396,9 +396,7 @@ try:
         # For each table in the documents page go through each row to find the links
         for table in tables:
             # Finding the name of the table
-            tableName = table.find_element(
-                By.CSS_SELECTOR, ".DisDoc_TitreCategorie"
-            ).text
+            tableName = table.find_element(By.CSS_SELECTOR, ".DisDoc_TitreCategorie").text
             if PRINT_TREE:
                 print("  * " + repr(tableName))
             sub_section_folder = "." + make_valid_path(
@@ -416,13 +414,14 @@ try:
                     By.CSS_SELECTOR,
                     ".lblDescriptionDocumentDansListe.colVoirTelecharger > a",
                 )
-
+                row_title = row.find_element(
+                    By.CSS_SELECTOR, "a.lblTitreDocumentDansListe"
+                ).text
+                href_content = download_element.get_attribute("href")
                 # If the link element is a simple file add the file link to the list of this folder
                 # if the element is downloable
                 if download_element.get_attribute("target"):
-                    all_folders_links[sub_section_folder].append(
-                        download_element.get_attribute("href")
-                    )
+                    all_folders_links[sub_section_folder].append(href_content)
                     files_found += 1
                     print(
                         f"{courseName}: ",
@@ -434,7 +433,7 @@ try:
                 # If the link element is a sub-table then click on it and add each link to the list
                 # of this folder if the element is downloable
                 elif not download_element.get_attribute("title"):
-                    driver.execute_script("arguments[0].click();", download_element)
+                    click_button(download_element)
                     subTableName = row.find_element(
                         By.CLASS_NAME, "lblTitreDocumentDansListe"
                     ).text
@@ -475,6 +474,54 @@ try:
                             flush=True,
                         )
                     driver.switch_to.default_content()
+                elif "ValiderLienDocExterne" in href_content:
+                    files_found += 1
+                    print(
+                        f"{courseName}: ",
+                        f"{files_found}".center(3),
+                        " documents found",
+                        end="\r",
+                        flush=True,
+                    )
+                    url = (
+                        unquote(href_content)
+                        .split("ValiderLienDocExterne('")[1]
+                        .split("'")[0]
+                    )
+                    save_external_link(
+                        url,
+                        sub_section_folder + "\\" + make_valid_path(row_title + ".html"),
+                    )
+                elif (
+                    "javascript:VisualiserVideo" in href_content
+                    and href_content[-6:] == "true);"
+                ):
+                    files_found += 1
+                    print(
+                        f"{courseName}: ",
+                        f"{files_found}".center(3),
+                        " documents found",
+                        end="\r",
+                        flush=True,
+                    )
+                    click_button(download_element)
+                    driver.switch_to.frame("iframePopup")
+                    url = (
+                        unquote(
+                            driver.find_element(
+                                By.CSS_SELECTOR, "a.Gen_Btn.Gen_BtnAction"
+                            ).get_attribute("href")
+                        )
+                        .split("OpenCentre('")[1]
+                        .split("', 'fenLienVideoExterne',")[0]
+                    )
+
+                    save_external_link(
+                        url,
+                        sub_section_folder + "\\" + make_valid_path(row_title + ".html"),
+                    )
+
+                    driver.switch_to.default_content()
 
         driver.close()
         driver.switch_to.window(original_window)
@@ -489,8 +536,8 @@ try:
     # in the correct folder
     download_everything(all_folders_links, session_requests)
 except Exception as e:
-    pass
-    # print(e)
+    # pass
+    print(e)
 finally:
     if driver:
         driver.quit()
