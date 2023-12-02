@@ -17,7 +17,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import NoSuchElementException
 
 SHOW_BROWSER = False
+PRINT_TREE = False
 
+print("Loading things up, please wait ...")
 
 def open_file(filename):
     if sys.platform == "win32":
@@ -233,15 +235,26 @@ def handle_2fa():
     submit_button = driver.find_element(
         By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()]/div/button"
     )
-    another_method_button = driver.find_element(
-        By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()-2]/a"
-    )
+
+    another_method_button = None
+    try:
+        another_method_button = driver.find_element(
+            By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()-2]/a"
+        )
+    except:
+        pass
+
     resend_button = None
 
     try:
-        resend_button = driver.find_element(
-            By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()-3]/button"
-        )
+        if another_method_button is None:
+            resend_button = driver.find_element(
+                By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()-2]/button"
+            )
+        else:
+            resend_button = driver.find_element(
+                By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()-3]/button"
+            )
     except:
         pass
 
@@ -249,14 +262,19 @@ def handle_2fa():
     print(message)
     print()
     print("1) Enter the code")
-    print("2) Validate my identity using another method")
+    if another_method_button is not None:
+        print("2) Validate my identity using another method")
+    else:
+        print("2) Unavailable")
+
     if resend_button is not None:
-        print("3) Resend")
+        print("3) Resend the code")
         choices = 3
     print()
-    user_choice = pyip.inputInt(
-        "What do you want to do? ", min=1, max=choices
-    )  # get_valid_input(choices)
+    user_choice = None
+    while user_choice is None or (another_method_button is None and user_choice == 2):
+        user_choice = pyip.inputInt("What do you want to do? ", min=1, max=choices)
+    
     if user_choice == 1:
         code = pyip.inputStr("ENTER THE RECEIVED CODE> ", strip=True)
         code_field.send_keys(code)
@@ -312,7 +330,6 @@ HEADERS = {
     "upgrade-insecure-requests": "1",
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
 }
-PRINT_TREE = False
 
 # Selenium driver
 driver = create_driver()
@@ -396,7 +413,9 @@ try:
         # For each table in the documents page go through each row to find the links
         for table in tables:
             # Finding the name of the table
-            tableName = table.find_element(By.CSS_SELECTOR, ".DisDoc_TitreCategorie").text
+            tableName = table.find_element(
+                By.CSS_SELECTOR, ".DisDoc_TitreCategorie"
+            ).text
             if PRINT_TREE:
                 print("  * " + repr(tableName))
             sub_section_folder = "." + make_valid_path(
@@ -490,7 +509,9 @@ try:
                     )
                     save_external_link(
                         url,
-                        sub_section_folder + "\\" + make_valid_path(row_title + ".html"),
+                        sub_section_folder
+                        + "\\"
+                        + make_valid_path(row_title + ".html"),
                     )
                 elif (
                     "javascript:VisualiserVideo" in href_content
@@ -518,7 +539,9 @@ try:
 
                     save_external_link(
                         url,
-                        sub_section_folder + "\\" + make_valid_path(row_title + ".html"),
+                        sub_section_folder
+                        + "\\"
+                        + make_valid_path(row_title + ".html"),
                     )
 
                     driver.switch_to.default_content()
@@ -537,9 +560,12 @@ try:
     download_everything(all_folders_links, session_requests)
 except Exception as e:
     # pass
-    print(e)
+    # print(e)
+    print()
+    print("Something went wrong ... :(")
+    print()
 finally:
     if driver:
         driver.quit()
 # Input to not exit of the program directly
-input()
+input("You can close the app.")
