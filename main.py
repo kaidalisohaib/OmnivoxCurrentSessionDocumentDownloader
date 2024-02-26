@@ -18,6 +18,7 @@ from selenium.common.exceptions import NoSuchElementException
 
 SHOW_BROWSER = False
 PRINT_TREE = False
+SHOW_ERRORS = False
 
 print("Loading things up, please wait ...")
 
@@ -171,7 +172,7 @@ def create_driver():
         options=options,
         service_log_path=os.devnull,
     )
-    _driver.implicitly_wait(2)
+    _driver.implicitly_wait(5)
 
     return _driver
 
@@ -231,15 +232,15 @@ def handle_2fa():
     message = driver.find_element(
         By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[1]"
     ).text
-    code_field = driver.find_element(By.ID, ":r1:")
+    code_field = driver.find_element(By.ID, ":r2:")
+    
     submit_button = driver.find_element(
-        By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()]/div/button"
+        By.XPATH, "/html/body/div[2]/div/main/div/div/div/div/div[last()]/div/button"
     )
-
     another_method_button = None
     try:
         another_method_button = driver.find_element(
-            By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()-2]/a"
+            By.XPATH, "/html/body/div[2]/div/main/div/div/div/div/div[last()-2]/a"
         )
     except:
         pass
@@ -253,7 +254,7 @@ def handle_2fa():
             )
         else:
             resend_button = driver.find_element(
-                By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[last()-3]/button"
+                By.XPATH, "/html/body/div[2]/div/main/div/div/div/div/div[last()-3]/button"
             )
     except:
         pass
@@ -560,7 +561,8 @@ try:
     download_everything(all_folders_links, session_requests)
 except Exception as e:
     # pass
-    # print(e)
+    if SHOW_ERRORS:
+        print(e)
     print()
     print("Something went wrong ... :(")
     print()
