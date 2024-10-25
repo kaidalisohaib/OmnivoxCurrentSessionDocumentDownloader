@@ -15,9 +15,10 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.chrome.service import Service as ChromeService
 
-SHOW_BROWSER = False
-PRINT_TREE = False
+SHOW_BROWSER = True
+PRINT_TREE = True
 SHOW_ERRORS = False
 
 print("Loading things up, please wait ...")
@@ -100,7 +101,7 @@ def download_everything(_allfolders_links: dict, session):
                 flush=True,
             )
     print("\n")
-    documents_path = Path(".\documents")
+    documents_path = Path(".\\documents")
     print("FINISHED DOWNLOADING THE FILES!")
     print()
     print("Absolute Folder Path: ")
@@ -166,9 +167,15 @@ def create_driver():
     logger = logging.getLogger("selenium.webdriver.remote.remote_connection")
     logger.setLevel(logging.WARNING)
 
+    chrome_install = ChromeDriverManager().install()
+
+    folder = os.path.dirname(chrome_install)
+    chromedriver_path = os.path.join(folder, "chromedriver.exe")
+
+    service = ChromeService(chromedriver_path)
     # DriverManager will download chrome driver in case it's not downloaded in the host machine
     _driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
+        service=service,
         options=options,
         service_log_path=os.devnull,
     )
@@ -184,13 +191,16 @@ def handle_login():
     print()
     print("1) Vanier")
     print("2) Rosemont")
+    print("3) Maisonneuve")
     print()
-    college_choice = pyip.inputInt(min=1, max=2, prompt="(1 or 2)> ")
+    college_choice = pyip.inputInt(min=1, max=3, prompt="(1 to 3)> ")
     match college_choice:
         case 1:
             LOGIN_URL = "https://vaniercollege.omnivox.ca/Login/Account/Login"
         case 2:
             LOGIN_URL = "https://crosemont.omnivox.ca/Login/Account/Login"
+        case 3:
+            LOGIN_URL = "https://cmaisonneuve.omnivox.ca/Login/Account/Login"
     print("\nLoading login page ...")
     # Go to the login page
     driver.get(LOGIN_URL)
@@ -227,7 +237,7 @@ def handle_login():
 
 def handle_2fa():
     clear()
-    print("Two-factor authentication part ¯\_(ツ)_/¯")
+    print(r"Two-factor authentication part ¯\_(ツ)_/¯")
     print()
     message = driver.find_element(
         By.XPATH, "/html/body/div[2]/div/main/div/div/div/div[1]"
@@ -340,7 +350,7 @@ sys.tracebacklimit = 0
 
 try:
     # Preparing folder to put documents inside
-    base_folder_documents = ".\documents"
+    base_folder_documents = ".\\documents"
     if os.path.exists(base_folder_documents):
         shutil.rmtree(base_folder_documents)
     create_folder_if_not_exist(base_folder_documents)
