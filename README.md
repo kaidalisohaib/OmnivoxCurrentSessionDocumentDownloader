@@ -1,13 +1,12 @@
 # Omnivox Course Downloader
 
 [![Python Version](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/)
-[![GitHub Actions CI](https://github.com/kaidalisohaib/Omnivox-Course-Downloader/actions/workflows/create-executable.yml/badge.svg)](https://github.com/kaidalisohaib/Omnivox-Course-Downloader/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 An automated Python script that logs into the Omnivox student portal, scrapes all course documents, and organizes them into a local folder structure.
 
-![](./assets/start.png)
-![](./assets/end.png)
+![](https://raw.githubusercontent.com/kaidalisohaib/OmnivoxCurrentSessionDocumentDownloader/refs/heads/main/assets/start.png)
+![](https://raw.githubusercontent.com/kaidalisohaib/OmnivoxCurrentSessionDocumentDownloader/refs/heads/main/assets/end.png)
 
 ## Table of Contents
 
